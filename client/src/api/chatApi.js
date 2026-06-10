@@ -19,7 +19,6 @@ export const getSession = (id) =>
 
 export const deleteSession = (id) =>
   api.delete(`/api/sessions/${id}`).then(r => r.data)
-
 export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDone, onError }) => {
   const controller = new AbortController()
   const token = getToken()
@@ -31,48 +30,40 @@ export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDon
     signal: controller.signal,
   })
   .then(async (res) => {
-    if (!res.ok) {
-      onError('Server error')
-      return
-    }
+    if (!res.ok) { onError('Server error'); return }
 
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let isDone = false
 
     try {
       while (true) {
         const { done, value } = await reader.read()
-
-        if (done) {
-          // Stream ended — process any remaining buffer
-          if (buffer.trim()) {
-            const lines = buffer.split('\n')
-            for (const line of lines) {
-              if (!line.startsWith('data: ')) continue
-              try {
-                const data = JSON.parse(line.slice(6))
-                if (data.type === 'done') onDone(data.sessionId)
-              } catch {}
-            }
-          }
-          break
-        }
+        if (done) break
 
         buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() // keep incomplete line
 
-        for (const line of lines) {
+        // Split on double newline — that's the SSE event separator
+        const events = buffer.split('\n\n')
+        buffer = events.pop() // keep incomplete event
+
+        for (const event of events) {
+          const line = event.trim()
           if (!line.startsWith('data: ')) continue
           try {
             const data = JSON.parse(line.slice(6))
             if (data.type === 'session') onSession(data.sessionId)
-            if (data.type === 'chunk')   onChunk(data.text)
-            if (data.type === 'done')    onDone(data.sessionId)
-            if (data.type === 'error')   onError(data.message)
+            if (data.type === 'chunk' && data.text) onChunk(data.text)
+            if (data.type === 'done') {
+              isDone = true
+              onDone(data.sessionId)
+            }
+            if (data.type === 'error') onError(data.message)
           } catch {}
         }
+
+        if (isDone) break
       }
     } catch (err) {
       if (err.name !== 'AbortError') onError(err.message)
