@@ -50,6 +50,7 @@ export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDon
 
         for (const event of events) {
           const line = event.trim()
+           if (!line || line.startsWith(':')) continue  // skip keepalive comments
           if (!line.startsWith('data: ')) continue
           try {
             const data = JSON.parse(line.slice(6))
