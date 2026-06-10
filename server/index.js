@@ -16,7 +16,8 @@ app.use(helmet())
 app.use(morgan('dev'))
 app.use(cors({
   origin: process.env.CLIENT_URL,
-  methods: ['GET', 'POST', 'DELETE'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],  // ← add this
   credentials: true,
 }))
 app.use(express.json())
