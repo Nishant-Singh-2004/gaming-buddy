@@ -1,40 +1,46 @@
 import { useState, useEffect } from 'react'
 
 const BASE = import.meta.env.VITE_API_URL
+const TOKEN_KEY = 'gb_token'
+
+const getToken = () => localStorage.getItem(TOKEN_KEY)
 
 const useAuth = () => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const getToken = () => localStorage.getItem('gb_token')
-  const setToken = (t) => localStorage.setItem('gb_token', t)
-  const clearToken = () => localStorage.removeItem('gb_token')
-
   useEffect(() => {
-    // Check if Google redirected back with a token in URL
+    // Check if Google redirected back with token in URL
     const params = new URLSearchParams(window.location.search)
     const urlToken = params.get('token')
-    console.log('URL token:', urlToken)
-  console.log('Full URL:', window.location.href)
-  console.log('Stored token:', localStorage.getItem('gb_token'))
+
     if (urlToken) {
-      setToken(urlToken)
-      // Clean token from URL without reload
+      localStorage.setItem(TOKEN_KEY, urlToken)
+      // Clean URL then reload so the app starts fresh with token in storage
       window.history.replaceState({}, '', window.location.pathname)
+      window.location.reload()
+      return
     }
 
-    const token = urlToken || getToken()
-    if (!token) { setLoading(false); return }
+    // Normal load — check stored token
+    const token = getToken()
+    if (!token) {
+      setLoading(false)
+      return
+    }
 
     fetch(`${BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
       .then(data => {
-        if (data.user) setUser(data.user)
-        else clearToken()
+        if (data.user) {
+          setUser(data.user)
+        } else {
+          localStorage.removeItem(TOKEN_KEY)
+        }
       })
-      .catch(() => clearToken())
+      .catch(() => localStorage.removeItem(TOKEN_KEY))
       .finally(() => setLoading(false))
   }, [])
 
@@ -43,11 +49,11 @@ const useAuth = () => {
   }
 
   const logout = () => {
-    clearToken()
+    localStorage.removeItem(TOKEN_KEY)
     setUser(null)
   }
 
-  return { user, loading, login, logout, getToken }
+  return { user, loading, login, logout }
 }
 
 export default useAuth
