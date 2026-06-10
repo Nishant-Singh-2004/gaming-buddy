@@ -14,7 +14,9 @@ const useAuth = () => {
     // Check if Google redirected back with a token in URL
     const params = new URLSearchParams(window.location.search)
     const urlToken = params.get('token')
-
+    console.log('URL token:', urlToken)
+  console.log('Full URL:', window.location.href)
+  console.log('Stored token:', localStorage.getItem('gb_token'))
     if (urlToken) {
       setToken(urlToken)
       // Clean token from URL without reload
