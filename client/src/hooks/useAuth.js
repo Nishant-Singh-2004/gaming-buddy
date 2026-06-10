@@ -14,23 +14,36 @@ const useAuth = () => {
     const urlToken = params.get('token')
 
     if (urlToken) {
-      localStorage.setItem(TOKEN_KEY, urlToken)
+      try {
+        localStorage.setItem(TOKEN_KEY, urlToken)
+        const stored = localStorage.getItem(TOKEN_KEY)
+        console.log('Token stored:', stored ? 'YES' : 'NO')
+      } catch(e) {
+        console.error('localStorage failed:', e)
+      }
+      // Replace URL and let the same render cycle continue
       window.history.replaceState({}, '', window.location.pathname)
-      window.location.reload()
+    }
+
+    const token = localStorage.getItem(TOKEN_KEY)
+    console.log('Token found:', token ? 'YES' : 'NO')
+
+    if (!token) {
+      setLoading(false)
       return
     }
 
-    const token = getToken()
-    if (!token) { setLoading(false); return }
-
-    // Pass token as query param instead of Authorization header
     fetch(`${BASE}/auth/me?token=${token}`)
       .then(r => r.json())
       .then(data => {
+        console.log('Auth me response:', data)
         if (data.user) setUser(data.user)
         else localStorage.removeItem(TOKEN_KEY)
       })
-      .catch(() => localStorage.removeItem(TOKEN_KEY))
+      .catch(err => {
+        console.error('Auth me error:', err)
+        localStorage.removeItem(TOKEN_KEY)
+      })
       .finally(() => setLoading(false))
   }, [])
 
