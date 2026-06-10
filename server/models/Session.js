@@ -7,9 +7,10 @@ const messageSchema = new mongoose.Schema({
 })
 
 const sessionSchema = new mongoose.Schema({
-  game:      { type: String, required: true },
-  title:     { type: String, default: 'New Chat' },
-  messages:  [messageSchema],
+  userId:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  game:     { type: String, required: true },
+  title:    { type: String, default: 'New Chat' },
+  messages: [messageSchema],
 }, { timestamps: true })
 
 export default mongoose.model('Session', sessionSchema)

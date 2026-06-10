@@ -3,24 +3,29 @@ import Session from '../models/Session.js'
 
 const router = express.Router()
 
-// Get all sessions for a game tab
-router.get('/:game', async (req, res) => {
+const requireAuth = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Login required' })
+  next()
+}
+
+router.get('/:game', requireAuth, async (req, res) => {
   try {
     const sessions = await Session.find(
-      { game: req.params.game },
-      'title game createdAt'          // only send metadata, not full messages
+      { game: req.params.game, userId: req.user._id },
+      'title game createdAt'
     ).sort({ createdAt: -1 }).limit(20)
-
     res.json(sessions)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
 
-// Get a single session with full message history
-router.get('/session/:id', async (req, res) => {
+router.get('/session/:id', requireAuth, async (req, res) => {
   try {
-    const session = await Session.findById(req.params.id)
+    const session = await Session.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    })
     if (!session) return res.status(404).json({ error: 'Session not found' })
     res.json(session)
   } catch (err) {
@@ -28,10 +33,9 @@ router.get('/session/:id', async (req, res) => {
   }
 })
 
-// Delete a session
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
-    await Session.findByIdAndDelete(req.params.id)
+    await Session.findOneAndDelete({ _id: req.params.id, userId: req.user._id })
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })

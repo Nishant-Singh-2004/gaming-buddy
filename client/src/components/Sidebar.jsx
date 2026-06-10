@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import useChatStore from '../stores/useChatStore'
 import { getSessions, deleteSession } from '../api/chatApi'
 
-const Sidebar = () => {
+const Sidebar = ({ user, onLogout }) => {
   const {
     games, activeGame, setActiveGame,
     sessions, setSessions,
@@ -100,10 +100,25 @@ const Sidebar = () => {
         ))}
       </div>
 
-      {/* Footer */}
-      <div className="px-5 py-3 border-t border-white/5">
-        <p className="text-textsec text-xs">Powered by Gemini 2.0</p>
-      </div>
+      {/* Footer — user info + logout */}
+<div className="px-4 py-3 border-t border-white/5 flex items-center gap-3">
+  <img
+    src={user.avatar}
+    alt={user.name}
+    className="w-8 h-8 rounded-full border border-accent/30"
+  />
+  <div className="flex-1 min-w-0">
+    <p className="text-textprim text-xs font-semibold truncate">{user.name}</p>
+    <p className="text-textsec text-xs truncate">{user.email}</p>
+  </div>
+  <button
+    onClick={onLogout}
+    className="text-textsec hover:text-accent text-xs transition-colors flex-shrink-0"
+    title="Logout"
+  >
+    ↪
+  </button>
+</div>
     </aside>
   )
 }

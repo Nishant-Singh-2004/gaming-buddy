@@ -6,45 +6,48 @@ import { streamGeminiResponse } from '../services/geminiService.js'
 const router = express.Router()
 
 const limiter = rateLimit({
-  windowMs: 60 * 1000,  // 1 minute
-  max: 20,              // 20 requests per minute per IP
+  windowMs: 60 * 1000,
+  max: 20,
   message: { error: 'Too many requests, slow down!' },
 })
 
-router.post('/', limiter, async (req, res) => {
+// Auth middleware
+const requireAuth = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Login required' })
+  next()
+}
+
+router.post('/', limiter, requireAuth, async (req, res) => {
   const { sessionId, game, message } = req.body
+  const userId = req.user._id
 
   if (!game || !message) {
     return res.status(400).json({ error: 'game and message are required' })
   }
 
   try {
-    // Load or create session
     let session = sessionId
-      ? await Session.findById(sessionId)
+      ? await Session.findOne({ _id: sessionId, userId })
       : null
 
     if (!session) {
       session = new Session({
         game,
-        title: message.slice(0, 40),   // first message becomes the title
+        userId,
+        title: message.slice(0, 40),
         messages: [],
       })
     }
 
-    // Append user message
     session.messages.push({ role: 'user', content: message })
 
-    // ── SSE headers ────────────────────────────────────
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
     res.flushHeaders()
 
-    // Send session ID immediately so client can track it
     res.write(`data: ${JSON.stringify({ type: 'session', sessionId: session._id })}\n\n`)
 
-    // ── Stream Gemini ───────────────────────────────────
     await streamGeminiResponse(
       game,
       session.messages,
@@ -52,15 +55,12 @@ router.post('/', limiter, async (req, res) => {
         res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunk })}\n\n`)
       },
       async (fullText) => {
-        // Save completed model response
         session.messages.push({ role: 'model', content: fullText })
         await session.save()
-
         res.write(`data: ${JSON.stringify({ type: 'done', sessionId: session._id })}\n\n`)
         res.end()
       }
     )
-
   } catch (err) {
     console.error('Chat error:', err.message)
     if (!res.headersSent) {

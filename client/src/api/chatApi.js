@@ -2,25 +2,27 @@ import axios from 'axios'
 
 const BASE = import.meta.env.VITE_API_URL
 
-// Fetch all sessions for a game
+const api = axios.create({
+  baseURL: BASE,
+  withCredentials: true,  // ← sends cookies with every request
+})
+
 export const getSessions = (game) =>
-  axios.get(`${BASE}/api/sessions/${game}`).then(r => r.data)
+  api.get(`/api/sessions/${game}`).then(r => r.data)
 
-// Fetch a single session with full history
 export const getSession = (id) =>
-  axios.get(`${BASE}/api/sessions/session/${id}`).then(r => r.data)
+  api.get(`/api/sessions/session/${id}`).then(r => r.data)
 
-// Delete a session
 export const deleteSession = (id) =>
-  axios.delete(`${BASE}/api/sessions/${id}`).then(r => r.data)
+  api.delete(`/api/sessions/${id}`).then(r => r.data)
 
-// SSE streaming chat — returns an EventSource-like fetch stream
 export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDone, onError }) => {
   const controller = new AbortController()
 
   fetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',   // ← sends cookies with stream request
     body: JSON.stringify({ sessionId, game, message }),
     signal: controller.signal,
   })
@@ -36,7 +38,7 @@ export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDon
 
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
-      buffer = lines.pop()  // keep incomplete line in buffer
+      buffer = lines.pop()
 
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue
@@ -54,5 +56,5 @@ export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDon
     if (err.name !== 'AbortError') onError(err.message)
   })
 
-  return () => controller.abort()  // returns cancel function
+  return () => controller.abort()
 }

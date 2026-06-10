@@ -3,37 +3,52 @@ import mongoose from 'mongoose'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
-import dotenv from 'dotenv'
+import session from 'express-session'
+import MongoStore from 'connect-mongo'
+import passport, { initPassport } from './config/passport.js'
 import chatRoutes from './routes/chat.js'
 import sessionRoutes from './routes/sessions.js'
-import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
-require('dotenv').config()
-dotenv.config()
+import authRoutes from './routes/auth.js'
 
 const app = express()
 
-// ── Middleware ──────────────────────────────────────────
 app.use(helmet())
 app.use(morgan('dev'))
 app.use(cors({
-  // origin: process.env.CLIENT_URL,
-  origin: '*',
+  origin: process.env.CLIENT_URL,
   methods: ['GET', 'POST', 'DELETE'],
-  credentials: false,
+  credentials: true,
 }))
 app.use(express.json())
 
-// ── Routes ──────────────────────────────────────────────
-app.use('/api/chat', chatRoutes)
-app.use('/api/sessions', sessionRoutes)
-
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
-// ── MongoDB + Start ─────────────────────────────────────
+// ── Connect MongoDB first, then set up session + passport ──
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB connected')
+
+    // Session setup AFTER mongoose connects and env vars are loaded
+    app.use(session({
+      secret: process.env.SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI }),
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      }
+    }))
+
+    app.use(passport.initialize())
+    app.use(passport.session())
+    initPassport()
+
+    app.use('/api/chat', chatRoutes)
+    app.use('/api/sessions', sessionRoutes)
+    app.use('/auth', authRoutes)
+
     app.listen(process.env.PORT || 5000, () =>
       console.log(`🚀 Server running on port ${process.env.PORT || 5000}`)
     )
