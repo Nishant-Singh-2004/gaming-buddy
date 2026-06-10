@@ -2,9 +2,15 @@ import axios from 'axios'
 
 const BASE = import.meta.env.VITE_API_URL
 
-const api = axios.create({
-  baseURL: BASE,
-  withCredentials: true,  // ← sends cookies with every request
+const getToken = () => localStorage.getItem('gb_token')
+
+const api = axios.create({ baseURL: BASE })
+
+// Attach token to every axios request
+api.interceptors.request.use(config => {
+  const token = getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
 })
 
 export const getSessions = (game) =>
@@ -18,11 +24,14 @@ export const deleteSession = (id) =>
 
 export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDone, onError }) => {
   const controller = new AbortController()
+  const token = getToken()
 
   fetch(`${BASE}/api/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',   // ← sends cookies with stream request
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
     body: JSON.stringify({ sessionId, game, message }),
     signal: controller.signal,
   })
@@ -35,11 +44,9 @@ export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDon
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
       buffer = lines.pop()
-
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue
         try {

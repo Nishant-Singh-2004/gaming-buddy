@@ -1,32 +1,46 @@
 import express from 'express'
 import passport from 'passport'
+import jwt from 'jsonwebtoken'
 
 const router = express.Router()
 
-// Initiates Google login
 router.get('/google', passport.authenticate('google', {
   scope: ['profile', 'email']
 }))
 
-// Google redirects here after login
 router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login?error=true` }),
   (req, res) => {
-    res.redirect(`${process.env.CLIENT_URL}`)
+    // Create JWT token with user data
+    const token = jwt.sign(
+      {
+        id:     req.user._id,
+        name:   req.user.name,
+        email:  req.user.email,
+        avatar: req.user.avatar,
+      },
+      process.env.SESSION_SECRET,
+      { expiresIn: '7d' }
+    )
+    // Send token to client via URL param
+    res.redirect(`${process.env.CLIENT_URL}?token=${token}`)
   }
 )
 
-// Get current logged in user
 router.get('/me', (req, res) => {
-  if (!req.user) return res.status(401).json({ user: null })
-  res.json({ user: req.user })
+  const auth = req.headers.authorization
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ user: null })
+
+  try {
+    const user = jwt.verify(auth.slice(7), process.env.SESSION_SECRET)
+    res.json({ user })
+  } catch {
+    res.status(401).json({ user: null })
+  }
 })
 
-// Logout
 router.get('/logout', (req, res) => {
-  req.logout(() => {
-    res.json({ success: true })
-  })
+  res.json({ success: true })
 })
 
 export default router

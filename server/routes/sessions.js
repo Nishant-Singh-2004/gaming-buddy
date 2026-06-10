@@ -3,9 +3,18 @@ import Session from '../models/Session.js'
 
 const router = express.Router()
 
+import jwt from 'jsonwebtoken'
+
 const requireAuth = (req, res, next) => {
-  if (!req.user) return res.status(401).json({ error: 'Login required' })
-  next()
+  const auth = req.headers.authorization
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Login required' })
+
+  try {
+    req.user = jwt.verify(auth.slice(7), process.env.SESSION_SECRET)
+    next()
+  } catch {
+    res.status(401).json({ error: 'Invalid token' })
+  }
 }
 
 router.get('/:game', requireAuth, async (req, res) => {

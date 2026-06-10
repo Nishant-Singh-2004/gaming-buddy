@@ -2,6 +2,7 @@ import express from 'express'
 import rateLimit from 'express-rate-limit'
 import Session from '../models/Session.js'
 import { streamGeminiResponse } from '../services/geminiService.js'
+import jwt from 'jsonwebtoken'
 
 const router = express.Router()
 
@@ -11,12 +12,18 @@ const limiter = rateLimit({
   message: { error: 'Too many requests, slow down!' },
 })
 
-// Auth middleware
-const requireAuth = (req, res, next) => {
-  if (!req.user) return res.status(401).json({ error: 'Login required' })
-  next()
-}
 
+const requireAuth = (req, res, next) => {
+  const auth = req.headers.authorization
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Login required' })
+
+  try {
+    req.user = jwt.verify(auth.slice(7), process.env.SESSION_SECRET)
+    next()
+  } catch {
+    res.status(401).json({ error: 'Invalid token' })
+  }
+}
 router.post('/', limiter, requireAuth, async (req, res) => {
   const { sessionId, game, message } = req.body
   const userId = req.user._id

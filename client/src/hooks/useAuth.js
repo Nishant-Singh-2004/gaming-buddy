@@ -6,11 +6,33 @@ const useAuth = () => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const getToken = () => localStorage.getItem('gb_token')
+  const setToken = (t) => localStorage.setItem('gb_token', t)
+  const clearToken = () => localStorage.removeItem('gb_token')
+
   useEffect(() => {
-    fetch(`${BASE}/auth/me`, { credentials: 'include' })
+    // Check if Google redirected back with a token in URL
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('token')
+
+    if (urlToken) {
+      setToken(urlToken)
+      // Clean token from URL without reload
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    const token = urlToken || getToken()
+    if (!token) { setLoading(false); return }
+
+    fetch(`${BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
       .then(r => r.json())
-      .then(data => setUser(data.user))
-      .catch(() => setUser(null))
+      .then(data => {
+        if (data.user) setUser(data.user)
+        else clearToken()
+      })
+      .catch(() => clearToken())
       .finally(() => setLoading(false))
   }, [])
 
@@ -18,12 +40,12 @@ const useAuth = () => {
     window.location.href = `${BASE}/auth/google`
   }
 
-  const logout = async () => {
-    await fetch(`${BASE}/auth/logout`, { credentials: 'include' })
+  const logout = () => {
+    clearToken()
     setUser(null)
   }
 
-  return { user, loading, login, logout }
+  return { user, loading, login, logout, getToken }
 }
 
 export default useAuth

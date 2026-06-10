@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "start": "node index.js",
-  "dev": "nodemon --exec \"node --env-file=.env\" index.js"
-},
+    "start": "node index.js",
+    "dev": "nodemon --exec \"node --env-file=.env\" index.js"
+  },
   "type": "module",
   "keywords": [],
   "author": "",
@@ -20,6 +20,7 @@
     "express-rate-limit": "^8.5.2",
     "express-session": "^1.19.0",
     "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.3.0",
     "mongoose": "^9.6.3",
     "morgan": "^1.11.0",
