@@ -14,30 +14,20 @@ const app = express()
 
 app.use(helmet())
 app.use(morgan('dev'))
-app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', process.env.CLIENT_URL)
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  res.setHeader('Access-Control-Allow-Credentials', 'true')
-  res.sendStatus(204)
-})
-
 app.use(cors({
   origin: process.env.CLIENT_URL,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],  // ← add this
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }))
 app.use(express.json())
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
-// ── Connect MongoDB first, then set up session + passport ──
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB connected')
 
-    // Session setup AFTER mongoose connects and env vars are loaded
     app.use(session({
       secret: process.env.SESSION_SECRET,
       resave: false,
