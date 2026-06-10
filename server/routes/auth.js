@@ -42,5 +42,8 @@ router.get('/me', (req, res) => {
 router.get('/logout', (req, res) => {
   res.json({ success: true })
 })
+router.get('/ping', (req, res) => {
+  res.json({ ok: true, origin: req.headers.origin })
+})
 
 export default router
