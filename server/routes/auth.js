@@ -28,11 +28,11 @@ router.get('/google/callback',
 )
 
 router.get('/me', (req, res) => {
-  const auth = req.headers.authorization
-  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ user: null })
+  const token = req.query.token
+  if (!token) return res.status(401).json({ user: null })
 
   try {
-    const user = jwt.verify(auth.slice(7), process.env.SESSION_SECRET)
+    const user = jwt.verify(token, process.env.SESSION_SECRET)
     res.json({ user })
   } catch {
     res.status(401).json({ user: null })

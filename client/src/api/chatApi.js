@@ -1,15 +1,16 @@
 import axios from 'axios'
 
 const BASE = import.meta.env.VITE_API_URL
-
-const getToken = () => localStorage.getItem('gb_token')
+export const getToken = () => localStorage.getItem('gb_token')
 
 const api = axios.create({ baseURL: BASE })
 
-// Attach token to every axios request
+// Attach token as query param on every request
 api.interceptors.request.use(config => {
   const token = getToken()
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (token) {
+    config.params = { ...config.params, token }
+  }
   return config
 })
 
@@ -26,12 +27,9 @@ export const streamChat = ({ sessionId, game, message, onChunk, onSession, onDon
   const controller = new AbortController()
   const token = getToken()
 
-  fetch(`${BASE}/api/chat`, {
+  fetch(`${BASE}/api/chat?token=${token}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId, game, message }),
     signal: controller.signal,
   })
