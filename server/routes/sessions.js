@@ -19,8 +19,9 @@ const requireAuth = (req, res, next) => {
 
 router.get('/:game', requireAuth, async (req, res) => {
   try {
+    const userId = req.user.id || req.user._id
     const sessions = await Session.find(
-      { game: req.params.game, userId: req.user._id },
+      { game: req.params.game, userId },
       'title game createdAt'
     ).sort({ createdAt: -1 }).limit(20)
     res.json(sessions)
@@ -31,10 +32,8 @@ router.get('/:game', requireAuth, async (req, res) => {
 
 router.get('/session/:id', requireAuth, async (req, res) => {
   try {
-    const session = await Session.findOne({
-      _id: req.params.id,
-      userId: req.user._id
-    })
+    const userId = req.user.id || req.user._id
+    const session = await Session.findOne({ _id: req.params.id, userId })
     if (!session) return res.status(404).json({ error: 'Session not found' })
     res.json(session)
   } catch (err) {
@@ -44,7 +43,8 @@ router.get('/session/:id', requireAuth, async (req, res) => {
 
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
-    await Session.findOneAndDelete({ _id: req.params.id, userId: req.user._id })
+    const userId = req.user.id || req.user._id
+    await Session.findOneAndDelete({ _id: req.params.id, userId })
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })

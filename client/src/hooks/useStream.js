@@ -1,90 +1,95 @@
-import { useCallback } from 'react'
-import { streamChat, getSessions } from '../api/chatApi'
-import useChatStore from '../stores/useChatStore'
+import { useCallback } from "react";
+import { streamChat, getSessions } from "../api/chatApi";
+import useChatStore from "../stores/useChatStore";
 
 const useStream = () => {
-  const {
-    activeGame,
-    activeSessionId,
-    addMessage,
-    setMessages,
-    setSessions,
-    setActiveSession,
-    setStreaming,
-    appendStreamingText,
-    clearStreaming,
-    setStreamingText,
-    messages,
-  } = useChatStore()
+    const {
+        activeGame,
+        activeSessionId,
+        addMessage,
+        setMessages,
+        setSessions,
+        setActiveSession,
+        setStreaming,
+        appendStreamingText,
+        clearStreaming,
+        setStreamingText,
+        messages,
+    } = useChatStore();
 
-  const sendMessage = useCallback(async (text) => {
-    if (!text.trim()) return
+    const sendMessage = useCallback(async (text) => {
+        if (!text.trim()) return;
 
-    const game = useChatStore.getState().activeGame
-    const sessionId = useChatStore.getState().activeSessionId[game] || null
-    const tempKey = sessionId || `temp-${Date.now()}`
+        const game = useChatStore.getState().activeGame;
+        const sessionId = useChatStore.getState().activeSessionId[game] || null;
+        const tempKey = sessionId || `temp-${Date.now()}`;
 
-    // Add user message immediately
-    useChatStore.getState().addMessage(tempKey, {
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    })
+        // Add user message immediately
+        useChatStore.getState().addMessage(tempKey, {
+            role: "user",
+            content: text,
+            timestamp: new Date(),
+        });
 
-    useChatStore.getState().setStreaming(true)
-    useChatStore.getState().setStreamingText('')
+        useChatStore.getState().setStreaming(true);
+        useChatStore.getState().setStreamingText("");
 
-    let resolvedId = tempKey
-    let sessionConfirmed = !!sessionId
+        let resolvedId = tempKey;
+        let sessionConfirmed = !!sessionId;
 
-    streamChat({
-      sessionId,
-      game,
-      message: text,
+        streamChat({
+            sessionId,
+            game,
+            message: text,
 
-      onSession: (id) => {
-		 console.log('✅ Session ID received:', id)
-        resolvedId = id
-        if (!sessionConfirmed) {
-          sessionConfirmed = true
-          // Move temp messages to real session id
-          const msgs = useChatStore.getState().messages[tempKey] || []
-          useChatStore.getState().setMessages(id, msgs)
-          useChatStore.getState().setActiveSession(game, id)
-        }
-      },
+            onSession: (id) => {
+                console.log("✅ Session ID received:", id);
+                resolvedId = id;
+                if (!sessionConfirmed) {
+                    sessionConfirmed = true;
+                    // Move temp messages to real session id
+                    const msgs =
+                        useChatStore.getState().messages[tempKey] || [];
+                    useChatStore.getState().setMessages(id, msgs);
+                    useChatStore.getState().setActiveSession(game, id);
+                }
+            },
 
-      onChunk: (chunk) => {
-		console.log('📦 Chunk:', chunk)
-        useChatStore.getState().appendStreamingText(chunk)
-      },
+            onChunk: (chunk) => {
+                console.log("📦 Chunk:", chunk);
+                useChatStore.getState().appendStreamingText(chunk);
+            },
 
-      onDone: async () => {
-		console.log('🏁 Done')  
-        const finalText = useChatStore.getState().streamingText
+            onDone: async () => {
+                console.log("🏁 Done");
+                const finalText = useChatStore.getState().streamingText;
+                const currentGame = useChatStore.getState().activeGame;
 
-        useChatStore.getState().addMessage(resolvedId, {
-          role: 'model',
-          content: finalText,
-          timestamp: new Date(),
-        })
+                useChatStore.getState().addMessage(resolvedId, {
+                    role: "model",
+                    content: finalText,
+                    timestamp: new Date(),
+                });
 
-        useChatStore.getState().clearStreaming()
+                useChatStore.getState().clearStreaming();
 
-        try {
-          const updated = await getSessions(game)
-          useChatStore.getState().setSessions(game, updated)
-        } catch {}
-      },
+                // Refresh sidebar session list
+                try {
+                    const updated = await getSessions(currentGame);
+                    useChatStore.getState().setSessions(currentGame, updated);
+                } catch (e) {
+                    console.error("Session refresh failed:", e);
+                }
+            },
 
-      onError: (err) => {
-        console.error('Stream error:', err)
-        useChatStore.getState().clearStreaming()
-      },
-    })
-  }, [])
+            onError: (err) => {
+                console.error("Stream error:", err);
+                useChatStore.getState().clearStreaming();
+            },
+        });
+    }, []);
 
-  return { sendMessage }
-}
+    return { sendMessage };
+};
 
-export default useStream
+export default useStream;
